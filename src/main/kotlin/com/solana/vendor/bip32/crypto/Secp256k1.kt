@@ -16,12 +16,12 @@ object Secp256k1 {
      * @return serialized point
      */
     @JvmStatic
-    fun serP(p: ECPoint): ByteArray {
+    fun serializePoint(p: ECPoint): ByteArray {
         return p.getEncoded(true)
     }
 
     @JvmStatic
-    fun deserP(p: ByteArray): ECPoint {
+    fun deserializePoint(p: ByteArray): ECPoint {
         return SECP.curve.decodePoint(p)
     }
 

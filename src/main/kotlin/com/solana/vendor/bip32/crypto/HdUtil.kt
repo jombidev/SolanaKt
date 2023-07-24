@@ -1,8 +1,7 @@
 package com.solana.vendor.bip32.crypto
 
-import com.solana.vendor.bip32.crypto.Hash.h160
 import com.solana.vendor.bip32.crypto.Secp256k1.point
-import com.solana.vendor.bip32.crypto.Secp256k1.serP
+import com.solana.vendor.bip32.crypto.Secp256k1.serializePoint
 import java.math.BigInteger
 import java.util.*
 
@@ -11,7 +10,7 @@ import java.util.*
  */
 object HdUtil {
     /**
-     * ser32(i): serialize a 32-bit unsigned integer i as a 4-byte sequence,
+     * serializeToByteArray(i): serialize a 32-bit unsigned integer i as a 4-byte sequence,
      * most significant byte first.
      *
      *
@@ -20,7 +19,7 @@ object HdUtil {
      * @return ser32(i)
      */
     @JvmStatic
-    fun ser32(i: Long): ByteArray {
+    fun serializeToByteArray(i: Long): ByteArray {
         val ser = ByteArray(4)
         ser[0] = (i shr 24).toByte()
         ser[1] = (i shr 16).toByte()
@@ -30,14 +29,14 @@ object HdUtil {
     }
 
     /**
-     * ser256(p): serializes the integer p as a 32-byte sequence, most
+     * serializeToByteArray(p): serializes the integer p as a 32-byte sequence, most
      * significant byte first.
      *
      * @param p big integer
      * @return 32 byte sequence
      */
     @JvmStatic
-    fun ser256(p: BigInteger): ByteArray {
+    fun serializeToByteArray(p: BigInteger): ByteArray {
         val byteArray = p.toByteArray()
         val ret = ByteArray(32)
 
@@ -61,7 +60,7 @@ object HdUtil {
      * @return 256 bit number
      */
     @JvmStatic
-    fun parse256(p: ByteArray): BigInteger {
+    fun parseBigInteger(p: ByteArray): BigInteger {
         return BigInteger(1, p)
     }
 
@@ -106,8 +105,8 @@ object HdUtil {
      */
     @JvmStatic
     fun getFingerprint(keyData: ByteArray): ByteArray {
-        val point = serP(point(parse256(keyData)))
-        val h160 = h160(point)
+        val point = serializePoint(point(parseBigInteger(keyData)))
+        val h160 = Hash.H160.hash(point)
         return byteArrayOf(h160[0], h160[1], h160[2], h160[3])
     }
 }
