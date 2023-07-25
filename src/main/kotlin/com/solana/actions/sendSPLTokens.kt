@@ -2,61 +2,69 @@
 
 package com.solana.actions
 
+import com.solana.api.getDefaultInfo
+import com.solana.api.sendTransaction
 import com.solana.core.Account
 import com.solana.core.PublicKey
 import com.solana.core.Transaction
+import com.solana.core.TransactionInstruction
 import com.solana.programs.AssociatedTokenProgram
 import com.solana.programs.TokenProgram
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 suspend fun Action.sendSPLTokens(
-    mintAddress: PublicKey,
-    fromPublicKey: PublicKey,
-    destinationAddress: PublicKey,
+    from: Account,
+    to: PublicKey,
     amount: Long,
-    account: Account,
+    feePayer: Account? = null,
     allowUnfundedRecipient: Boolean = false,
-): Result<String>{
-    val spl = this.findSPLTokenDestinationAddress(
-        mintAddress,
-        destinationAddress,
-        allowUnfundedRecipient
-    ).getOrThrows()
+    mintAddress: PublicKey = PublicKey(USDTSOL().address),
+): Result<String> {
+    val acc = feePayer ?: from
+    val associatedTokenFrom = PublicKey.associatedTokenAddress(from.publicKey, mintAddress)
+    val accountFrom = api.getDefaultInfo(to).getOrNull()
+    if (accountFrom == null && !allowUnfundedRecipient)
+        return Result.failure(IllegalArgumentException("from account don't have spl token for '$mintAddress'."))
 
-    val toPublicKey = spl.first
-    val isUnregisteredAsocciatedToken = spl.second
-
+    val associatedTokenTo = PublicKey.associatedTokenAddress(to, mintAddress)
     val transaction = Transaction()
+    val transactionInstructions = arrayListOf<TransactionInstruction>()
 
-    // create associated token address
-    if(isUnregisteredAsocciatedToken) {
-        val createATokenInstruction = AssociatedTokenProgram.createAssociatedTokenAccountInstruction(
-            mint = mintAddress,
-            associatedAccount = toPublicKey,
-            owner = destinationAddress,
-            payer = account.publicKey
+    if (api.getDefaultInfo(to).getOrNull() == null) {
+        transactionInstructions.add(
+            AssociatedTokenProgram.createAssociatedTokenAccountInstruction(
+                mint = mintAddress,
+                associatedAccount = associatedTokenTo.address,
+                owner = to,
+                payer = acc.publicKey,
+            )
         )
-        transaction.add(createATokenInstruction)
     }
 
-    // send instruction
-    val sendInstruction = TokenProgram.transfer(fromPublicKey, toPublicKey, amount, account.publicKey)
-    transaction.add(sendInstruction)
-    val feeVerify = arrayListOf(account)
-    return serializeAndSendWithFee(transaction, feeVerify)
+    transactionInstructions.add(
+        TokenProgram.transfer(
+            associatedTokenFrom.address,
+            associatedTokenTo.address,
+            amount,
+            from.publicKey,
+        )
+    )
+
+    transaction.add(*transactionInstructions.toTypedArray())
+    return api.sendTransaction(transaction, if (feePayer == null) listOf(acc) else listOf(acc, from))
 }
 
 fun Action.sendSPLTokens(
-    mintAddress: PublicKey,
-    fromPublicKey: PublicKey,
-    destinationAddress: PublicKey,
+    from: Account,
+    to: PublicKey,
     amount: Long,
-    account: Account,
+    feePayer: Account? = null,
     allowUnfundedRecipient: Boolean = false,
+    mintAddress: PublicKey = PublicKey(USDTSOL().address),
     onComplete: ((Result<String>) -> Unit)
 ){
     CoroutineScope(api.dispatcher).launch {
-        onComplete(sendSPLTokens(mintAddress, fromPublicKey, destinationAddress, amount, account, allowUnfundedRecipient))
+        onComplete(sendSPLTokens(from, to, amount, feePayer, allowUnfundedRecipient, mintAddress))
     }
 }

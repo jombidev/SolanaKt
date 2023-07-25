@@ -12,6 +12,7 @@ package com.solana.networking
 import com.solana.exception.RequestException
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonElement
+import org.slf4j.LoggerFactory
 
 /*
  * Trying out a new pattern here where the native interface supports serialization, but we also
@@ -19,6 +20,8 @@ import kotlinx.serialization.json.JsonElement
  * This way we can provide a more 'traditional' service layer api while simultaneously supporting
  * more advanced usage with custom response objects and/or serializers
  */
+
+val LOGGER = LoggerFactory.getLogger(JsonRpcDriver::class.java)
 
 /**
  * JsonRpcDriver
@@ -53,6 +56,7 @@ suspend inline fun <reified R> JsonRpcDriver.makeRequestResult(
         }
 
         // an empty error and empty result means we did not find anything, return null
+        LOGGER.warn("Got success code but no body received. ({})", response.id)
         return Result.success(null)
     }
 

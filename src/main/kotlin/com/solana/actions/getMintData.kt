@@ -2,8 +2,8 @@
 
 package com.solana.actions
 
-import com.solana.api.solanaAccountSerializer
 import com.solana.api.getAccountInfo
+import com.solana.api.solanaAccountSerializer
 import com.solana.api.getMultipleAccountsInfo
 import com.solana.core.PublicKey
 import com.solana.models.buffer.Mint
@@ -27,7 +27,7 @@ suspend fun Action.getMintData(
     mintAddress: PublicKey,
     programId: PublicKey = TokenProgram.PROGRAM_ID
 ): Result<Mint> {
-    val account = this.api.getAccountInfo(solanaAccountSerializer(Mint.serializer()), mintAddress).getOrElse {
+    val account = this.api.getAccountInfo(mintAddress, solanaAccountSerializer(Mint.serializer())).getOrElse {
         return Result.failure(it)
     }
     if (account?.owner != programId.toBase58()) {

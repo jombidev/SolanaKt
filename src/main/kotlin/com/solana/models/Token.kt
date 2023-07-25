@@ -17,7 +17,7 @@ data class Token(
     var tokenTags: List<TokenTag> = listOf()
 
     companion object {
-        fun unsupported( mint: String?): Token {
+        fun unsupported(mint: String?): Token {
             return Token(
                 _tags = listOf(),
                 chainId = 101,

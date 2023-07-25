@@ -36,11 +36,7 @@ class TokensListParser {
                 it
             }
             val listTokens = tokenList.tokens.fold(listOf()) { list: List<Token>, token: Token ->
-                var result = list.toMutableList()
-                if (!result.contains(token)) {
-                    result.add(token)
-                }
-                result.toList()
+                list.toMutableList().apply { if (!contains(token)) add(token) }
             }
             Result.success(listTokens)
         } catch (e: Exception) {

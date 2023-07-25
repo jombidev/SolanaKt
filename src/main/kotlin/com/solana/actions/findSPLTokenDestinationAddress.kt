@@ -22,7 +22,7 @@ suspend fun Action.findSPLTokenDestinationAddress(
     destinationAddress: PublicKey,
     allowUnfundedRecipient: Boolean = false,
 ): Result<SPLTokenDestinationAddress, ResultError> {
-    return if(allowUnfundedRecipient) {
+    return if (allowUnfundedRecipient) {
         checkSPLTokenAccountExistence(
             mintAddress,
             destinationAddress,
@@ -40,7 +40,7 @@ fun Action.findSPLTokenDestinationAddress(
     destinationAddress: PublicKey,
     allowUnfundedRecipient: Boolean = false,
     onComplete: ((Result<SPLTokenDestinationAddress, ResultError>) -> Unit)
-){
+) {
     CoroutineScope(api.dispatcher).launch {
         onComplete(findSPLTokenDestinationAddress(mintAddress, destinationAddress, allowUnfundedRecipient))
     }
@@ -61,7 +61,7 @@ suspend fun Action.checkSPLTokenAccountExistence(
     result.onSuccess {
         hasAssociatedTokenAccount = true
     }.onFailure { error ->
-        if(error.message == nullValueError.message){
+        if (error.message == nullValueError.message) {
             hasAssociatedTokenAccount = false
         } else {
             return Result.failure(ResultError(error))
@@ -85,9 +85,8 @@ suspend fun Action.findSPLTokenDestinationAddressOfExistingAccount(
     destinationAddress: PublicKey
 ): Result<SPLTokenDestinationAddress, ResultError> {
     val infoResult = this.api.getAccountInfo(
-        accountInfoSerializer(
-            BorshAsBase64JsonArraySerializer((AccountInfoData.serializer()))),
         destinationAddress,
+        accountInfoSerializer(BorshAsBase64JsonArraySerializer((AccountInfoData.serializer()))),
     )
 
     val info = infoResult.getOrElse {
@@ -96,30 +95,24 @@ suspend fun Action.findSPLTokenDestinationAddressOfExistingAccount(
 
     // Its en existing account
     val toTokenMint = info?.data?.mint?.toBase58()
-    var toPublicKeyString = ""
-    if (info?.owner == TokenProgram.PROGRAM_ID.toBase58() && mintAddress.toBase58() == toTokenMint) { // detect if destination address is already a SPLToken address
-        toPublicKeyString = destinationAddress.toBase58()
-    }else if (info?.owner == SystemProgram.PROGRAM_ID.toBase58()) { // detect if destination address is a SOL address
+    val toPublicKeyString = if (info?.owner == TokenProgram.PROGRAM_ID.toBase58() && mintAddress.toBase58() == toTokenMint) { // detect if destination address is already a SPLToken address
+        destinationAddress.toBase58()
+    } else if (info?.owner == SystemProgram.PROGRAM_ID.toBase58()) { // detect if destination address is a SOL address
         val address = createProgramAddress(
             listOf(destinationAddress.toByteArray()),
             mintAddress
         )
-        toPublicKeyString = address.toBase58()
-    }
+        address.toBase58()
+    } else ""
     val toPublicKey = PublicKey(toPublicKeyString)
 
-    return if(destinationAddress.toBase58() != toPublicKey.toBase58()){
+    return if (destinationAddress.toBase58() != toPublicKey.toBase58()) {
         val info1 = this.api.getAccountInfo(
-            solanaAccountSerializer(AccountInfoData.serializer()),
-            toPublicKey
+            toPublicKey,
+            solanaAccountSerializer(AccountInfoData.serializer())
         ).getOrThrow()
-        var isUnregisteredAsocciatedToken = true
-        // if associated token account has been registered
-        if(info1?.owner == TokenProgram.PROGRAM_ID.toBase58() &&
-            info?.data != null) {
-            isUnregisteredAsocciatedToken = false
-        }
-        Result.success(SPLTokenDestinationAddress(toPublicKey,isUnregisteredAsocciatedToken))
+        val isUnregisteredAssociatedToken = info1?.owner != TokenProgram.PROGRAM_ID.toBase58() || info?.data == null
+        Result.success(SPLTokenDestinationAddress(toPublicKey, isUnregisteredAssociatedToken))
     } else {
         Result.success(SPLTokenDestinationAddress(toPublicKey, false))
     }

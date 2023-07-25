@@ -4,6 +4,7 @@ package com.solana.api
 
 import com.solana.core.PublicKey
 import com.solana.models.RpcSendTransactionConfig
+import com.solana.models.buffer.AccountInfoData
 import com.solana.networking.*
 import com.solana.networking.serialization.serializers.base64.BorshAsBase64JsonArraySerializer
 import com.solana.networking.serialization.serializers.solana.AnchorAccountSerializer
@@ -62,8 +63,8 @@ inline fun <reified A> solanaAccountSerializer() =
     accountInfoSerializer<A?>(BorshAsBase64JsonArraySerializer(AnchorAccountSerializer()))
 
 inline fun <reified T> Api.getAccountInfo(
-    serializer: KSerializer<T>,
     account: PublicKey,
+    serializer: KSerializer<T>,
     commitment: Commitment = Commitment.MAX,
     encoding: RpcSendTransactionConfig.Encoding = Encoding.base64,
     length: Int? = null,
@@ -71,20 +72,42 @@ inline fun <reified T> Api.getAccountInfo(
     crossinline onComplete: ((Result<T>) -> Unit)
 ) {
     CoroutineScope(dispatcher).launch {
-        onComplete(getAccountInfo(serializer, account, commitment, encoding, length, offset))
+        onComplete(getAccountInfo(account, serializer, commitment, encoding, length, offset))
     }
 }
 
-suspend inline fun <reified A> Api.getAccountInfo(
-    serializer: KSerializer<A>,
+suspend fun Api.getDefaultInfo(
     account: PublicKey,
     commitment: Commitment = Commitment.MAX,
     encoding: Encoding = Encoding.base64,
     length: Int? = null,
     offset: Int? = length?.let { 0 }
+): Result<AccountInfo<AccountInfoData?>> {
+    return router.makeRequestResult(
+        AccountRequest(
+            accountAddress = account.toBase58(),
+            encoding = encoding,
+            commitment = commitment.toString(),
+            length = length,
+            offset = offset
+        ),
+        accountInfoSerializer(BorshAsBase64JsonArraySerializer((AccountInfoData.serializer())))
+    ).let { result ->
+        @Suppress("UNCHECKED_CAST")
+        if (result.isSuccess && result.getOrNull() == null)
+            Result.failure(nullValueError)
+        else result as Result<AccountInfo<AccountInfoData?>> // safe cast, null case handled above
+    }
+}
+
+suspend inline fun <reified A> Api.getAccountInfo(
+    account: PublicKey,
+    serializer: KSerializer<A>,
+    commitment: Commitment = Commitment.MAX,
+    encoding: Encoding = Encoding.base64,
+    length: Int? = null,
+    offset: Int? = length?.let { 0 }
 ): Result<A> {
-
-
     return router.makeRequestResult(
         AccountRequest(
             accountAddress = account.toBase58(),

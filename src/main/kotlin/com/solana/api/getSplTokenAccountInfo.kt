@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class SplTokenAccountTokenInfo (
+data class SplTokenAccountTokenInfo(
     val isNative: Boolean?,
     val mint: String?,
     val owner: String?,
@@ -20,27 +20,29 @@ data class SplTokenAccountTokenInfo (
 )
 
 @Serializable
-data class SplTokenAccountInfoParsedData (
+data class SplTokenAccountInfoParsedData(
     val info: SplTokenAccountTokenInfo,
     val type: String
 )
 
 @Serializable
-data class SplTokenAccountInfo (
+data class SplTokenAccountInfo(
     val parsed: SplTokenAccountInfoParsedData,
     val program: String,
     val space: Int? = null
 )
 
 @Serializable
-data class SplTokenAccountValue (
+data class SplTokenAccountValue(
     val data: SplTokenAccountInfo
 )
 
 suspend fun Api.getSplTokenAccountInfo(account: PublicKey): Result<SplTokenAccountInfo> =
-    this.getAccountInfo(SolanaResponseSerializer(SplTokenAccountValue.serializer()), account, encoding = RpcSendTransactionConfig.Encoding.jsonParsed).map { result ->
-        (result?.data ?: throw SolanaException("Can not be null"))
-    }
+    getAccountInfo(
+        account,
+        SolanaResponseSerializer(SplTokenAccountValue.serializer()),
+        encoding = RpcSendTransactionConfig.Encoding.jsonParsed
+    ).map { it?.data ?: throw SolanaException("Can not be null") }
 
 fun Api.getSplTokenAccountInfo(account: PublicKey, onComplete: (Result<SplTokenAccountInfo>) -> Unit) {
     CoroutineScope(dispatcher).launch {
